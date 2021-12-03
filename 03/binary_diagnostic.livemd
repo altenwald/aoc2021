@@ -1,0 +1,102 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 3: Diagnóstico Binario
+
+## Puzzle 1
+
+```elixir
+data =
+  File.read!("input_01.txt")
+  |> String.trim_trailing()
+  |> String.split("\n")
+  |> Enum.map(&String.to_charlist/1)
+
+gamma =
+  data
+  |> Enum.zip()
+  |> Enum.reduce([], fn elements, acc ->
+    elements = Tuple.to_list(elements)
+    {zeros, ones} = Enum.split_with(elements, &(&1 == ?0))
+
+    if length(zeros) >= length(ones) do
+      [?0 | acc]
+    else
+      [?1 | acc]
+    end
+  end)
+  |> Enum.reverse()
+
+epsilon = for i <- gamma, do: if(i == ?0, do: ?1, else: ?0)
+
+List.to_integer(gamma, 2) * List.to_integer(epsilon, 2)
+```
+
+```output
+2250414
+```
+
+## Puzzle 2
+
+```elixir
+defmodule Puzzle do
+  def get_data(file) do
+    File.read!(file)
+    |> String.trim_trailing()
+    |> String.split("\n")
+    |> Enum.map(&String.to_charlist/1)
+  end
+
+  def oxygen_rating(data) do
+    f = fn
+      zeros, ones when zeros > ones -> ?0
+      zeros, ones when zeros < ones -> ?1
+      _zeros, _ones -> ?1
+    end
+
+    rating(data, 0, f)
+  end
+
+  def co2_scrubber_rating(data) do
+    f = fn
+      zeros, ones when zeros > ones -> ?1
+      zeros, ones when zeros < ones -> ?0
+      _zeros, _ones -> ?0
+    end
+
+    rating(data, 0, f)
+  end
+
+  defp rating([one], _i, _f), do: one
+
+  defp rating(data, i, f) do
+    elements = Enum.map(data, &{&1, Enum.at(&1, i)})
+    {zeros, ones} = Enum.split_with(elements, fn {_, i} -> i == ?0 end)
+    zeros = length(zeros)
+    ones = length(ones)
+    common = f.(zeros, ones)
+
+    Enum.reject(data, fn element ->
+      Enum.at(element, i) != common
+    end)
+    |> rating(i + 1, f)
+  end
+end
+
+data = Puzzle.get_data("input_02.txt")
+
+oxygen =
+  data
+  |> Puzzle.oxygen_rating()
+  |> List.to_integer(2)
+
+co2_scrubber =
+  data
+  |> Puzzle.co2_scrubber_rating()
+  |> List.to_integer(2)
+
+oxygen * co2_scrubber
+```
+
+```output
+6085575
+```
