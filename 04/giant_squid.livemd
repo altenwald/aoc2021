@@ -1,0 +1,199 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 4: El Calamar Gigante
+
+## Puzzle 1
+
+```elixir
+defmodule Puzzle do
+  def get_data(file) do
+    [numbers, _sep | boards] =
+      File.read!(file)
+      |> String.trim_trailing()
+      |> String.split("\n")
+
+    numbers =
+      for number <- String.split(numbers, ",") do
+        String.to_integer(number)
+      end
+
+    boards =
+      boards
+      |> Enum.chunk_by(&(&1 == ""))
+      |> Enum.reject(&(&1 == [""]))
+      |> Enum.map(fn board ->
+        board
+        |> Enum.map(fn row ->
+          row
+          |> String.split(" ", trim: true)
+          |> Enum.map(&String.to_integer/1)
+        end)
+      end)
+
+    {numbers, boards}
+  end
+
+  defp nil_if_match(cell, cell), do: nil
+  defp nil_if_match(cell, _number), do: cell
+
+  def called(number, boards) do
+    for board <- boards do
+      for row <- board do
+        for cell <- row, do: nil_if_match(cell, number)
+      end
+    end
+  end
+
+  defp rotated_board(board) do
+    board
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+
+  def get_winner([]), do: nil
+
+  def get_winner([board | boards]) do
+    if winner_by_rows?(board) or winner_by_rows?(rotated_board(board)) do
+      board
+    else
+      get_winner(boards)
+    end
+  end
+
+  defp winner_by_rows?(board) do
+    Enum.any?(board, fn row ->
+      Enum.all?(row, &is_nil/1)
+    end)
+  end
+end
+
+{numbers, boards} = Puzzle.get_data("input_01.txt")
+
+{number_called, board_winner} =
+  Enum.reduce_while(numbers, boards, fn number, boards ->
+    # eliminar ese número de los tableros
+    boards = Puzzle.called(number, boards)
+
+    # comprobar si hay un tablero ganador
+    if board_winner = Puzzle.get_winner(boards) do
+      {:halt, {number, board_winner}}
+    else
+      {:cont, boards}
+    end
+  end)
+
+board_sum =
+  board_winner
+  |> List.flatten()
+  |> Enum.reject(&is_nil/1)
+  |> Enum.sum()
+
+board_sum * number_called
+```
+
+```output
+29440
+```
+
+## Puzzle 2
+
+```elixir
+defmodule Puzzle do
+  def get_data(file) do
+    [numbers, _sep | boards] =
+      File.read!(file)
+      |> String.trim_trailing()
+      |> String.split("\n")
+
+    numbers =
+      for number <- String.split(numbers, ",") do
+        String.to_integer(number)
+      end
+
+    boards =
+      boards
+      |> Enum.chunk_by(&(&1 == ""))
+      |> Enum.reject(&(&1 == [""]))
+      |> Enum.map(fn board ->
+        board
+        |> Enum.map(fn row ->
+          row
+          |> String.split(" ", trim: true)
+          |> Enum.map(&String.to_integer/1)
+        end)
+      end)
+
+    {numbers, boards}
+  end
+
+  defp nil_if_match(cell, cell), do: nil
+  defp nil_if_match(cell, _number), do: cell
+
+  def called(number, boards) do
+    for board <- boards do
+      for row <- board do
+        for cell <- row, do: nil_if_match(cell, number)
+      end
+    end
+  end
+
+  defp rotated_board(board) do
+    board
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+
+  def get_winners(boards),
+    do: get_winners(boards, [])
+
+  def get_winners([], []), do: nil
+  def get_winners([], acc), do: Enum.reverse(acc)
+
+  def get_winners([board | boards], acc) do
+    if winner_by_rows?(board) or winner_by_rows?(rotated_board(board)) do
+      get_winners(boards, [board | acc])
+    else
+      get_winners(boards, acc)
+    end
+  end
+
+  defp winner_by_rows?(board) do
+    Enum.any?(board, fn row ->
+      Enum.all?(row, &is_nil/1)
+    end)
+  end
+end
+
+{numbers, boards} = Puzzle.get_data("input_02.txt")
+
+[{number_called, board_winner} | _] =
+  Enum.reduce_while(numbers, {[], boards}, fn
+    _number, {winners, []} ->
+      {:halt, Enum.reverse(winners)}
+
+    number, {winners, boards} ->
+      # eliminar ese número de los tableros
+      boards = Puzzle.called(number, boards)
+
+      # comprobar si hay un tablero ganador
+      if board_winners = Puzzle.get_winners(boards) do
+        boards = boards -- board_winners
+        winners = winners ++ Enum.map(board_winners, &{number, &1})
+        {:cont, {winners, boards}}
+      else
+        {:cont, {winners, boards}}
+      end
+  end)
+
+board_sum =
+  board_winner
+  |> List.flatten()
+  |> Enum.reject(&is_nil/1)
+  |> Enum.sum()
+
+board_sum * number_called
+```
+
+```output
+13884
+```
