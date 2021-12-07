@@ -1,0 +1,133 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 6: Pez linterna
+
+## Puzzle 1 (~12.1s)
+
+```elixir
+input =
+  File.read!("input_01.txt")
+  |> String.trim_trailing()
+  |> String.split(",")
+  |> Enum.map(&String.to_integer/1)
+
+1..80
+|> Enum.reduce(input, fn _day, school ->
+  {school, new_fish} =
+    Enum.map_reduce(school, 0, fn
+      0, acc -> {6, acc + 1}
+      i, acc -> {i - 1, acc}
+    end)
+
+  school ++ List.duplicate(8, new_fish)
+end)
+|> length()
+```
+
+```output
+380612
+```
+
+## Puzzle 1 (~ 7.6s)
+
+```elixir
+input =
+  File.read!("input_01.txt")
+  |> String.trim_trailing()
+  |> String.split(",")
+  |> Enum.map(&String.to_integer/1)
+
+1..80
+|> Enum.reduce(input, fn _day, school ->
+  Enum.reduce(school, [], fn
+    0, acc -> [6, 8 | acc]
+    i, acc -> [i - 1 | acc]
+  end)
+end)
+|> length()
+```
+
+```output
+380612
+```
+
+## Puzzle 1 (~ 0.1s)
+
+```elixir
+input =
+  File.read!("input_01.txt")
+  |> String.trim_trailing()
+  |> String.split(",")
+  |> Enum.map(&String.to_integer/1)
+
+values =
+  for i <- 1..5 do
+    Enum.reduce(1..80, [i], fn _day, school ->
+      Enum.reduce(school, [], fn
+        0, acc -> [6, 8 | acc]
+        i, acc -> [i - 1 | acc]
+      end)
+    end)
+    |> length()
+  end
+  |> Enum.with_index(1)
+  |> Enum.map(fn {n, idx} -> {idx, n} end)
+  |> Map.new()
+
+input
+|> Enum.map(&values[&1])
+|> Enum.sum()
+```
+
+```output
+380612
+```
+
+## Puzzle 2 (~22ms)
+
+```elixir
+defmodule Puzzle do
+  def get_data(file) do
+    File.read!(file)
+    |> String.trim_trailing()
+    |> String.split(",")
+    |> Enum.map(&String.to_integer/1)
+  end
+
+  def spawned(day, acc, mem) when day <= 0, do: {acc + 1, mem}
+
+  def spawned(day, acc, mem) do
+    {acc, mem} =
+      case mem[day - 2] do
+        nil ->
+          {child_acc, mem} = spawned(day - 9, 0, mem)
+          mem = Map.put(mem, day - 2, child_acc)
+          {acc + child_acc, mem}
+
+        child_acc ->
+          {acc + child_acc, mem}
+      end
+
+    spawned(day - 7, acc, mem)
+  end
+
+  def children(gen) do
+    Enum.map_reduce(1..5, %{}, fn i, acc ->
+      {value, acc} = spawned(gen - i, 0, acc)
+      {{i, value}, acc}
+    end)
+    |> then(fn {acc, _mem} -> acc end)
+    |> Map.new()
+  end
+end
+
+values = Puzzle.children(256)
+
+Puzzle.get_data("input_02.txt")
+|> Enum.map(&values[&1])
+|> Enum.sum()
+```
+
+```output
+1710166656900
+```
