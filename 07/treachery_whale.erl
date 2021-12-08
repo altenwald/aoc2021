@@ -1,7 +1,6 @@
 #!/usr/bin/env escript
 
-%% When we activate this... FAILS!
-%%-mode(compile).
+-mode(compile).
 
 main([]) ->
     io:format("syntax: treachery_whale <1|2> <file.txt>~n"),
