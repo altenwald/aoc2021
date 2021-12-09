@@ -1,0 +1,169 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 8: La Búsqueda de los 7 Segmentos
+
+## General
+
+```elixir
+defmodule Puzzle.Common do
+  def get_data(file) do
+    File.read!(file)
+    |> String.trim_trailing()
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      {ini, ["|" | digits]} =
+        line
+        |> String.split(" ")
+        |> Enum.split_while(&(&1 != "|"))
+
+      {ini, digits}
+    end)
+  end
+end
+
+:ok
+```
+
+```output
+:ok
+```
+
+## Puzzle 1
+
+```elixir
+defmodule Puzzle do
+  @unique_digits [
+    #  digit 1
+    2,
+    # digit 4
+    4,
+    # digit 7
+    3,
+    # digit 8
+    7
+  ]
+
+  def solve(data) do
+    Enum.reduce(data, 0, fn {_ini, digits}, acc ->
+      Enum.reduce(digits, acc, fn
+        x, acc when byte_size(x) in @unique_digits ->
+          acc + 1
+
+        _x, acc ->
+          acc
+      end)
+    end)
+  end
+end
+
+# "demo_input.txt"
+"input_01.txt"
+|> Puzzle.Common.get_data()
+|> Puzzle.solve()
+```
+
+```output
+294
+```
+
+## Puzzle 2
+
+```
+   dddd      aaaa
+  e    a    b    c
+  e    b    b    c
+   ffff      dddd
+  g    a    e    f
+  g    b    e    f
+   cccc      gggg
+```
+
+1. buscar 2-segmentos (1) (asociar opciones a "c" y "f")
+2. buscar 3-segmentos (7) (determinamos "a")
+3. buscar 4-segmentos (4) (asociar opciones a "b" y "d")
+4. buscar 5-segmentos (3):
+   * por concordancia con opciones "a", "c", "d" y "f"
+   * determinamos "b", "d" y "g"
+5. determinar "e"
+6. buscar 5-segmentos (5 o 2) (determinamos "c" y "f)
+
+```elixir
+defmodule Puzzle do
+  defp segments(ini) do
+    cf = to_charlist(Enum.find(ini, &(String.length(&1) == 2)))
+    acf = to_charlist(Enum.find(ini, &(String.length(&1) == 3)))
+    a = acf -- cf
+    bcdf = to_charlist(Enum.find(ini, &(String.length(&1) == 4)))
+    bd = bcdf -- cf
+
+    acdfg =
+      to_charlist(
+        Enum.find(ini, fn x ->
+          x = to_charlist(x)
+
+          length(x) == 5 and
+            a -- x == [] and
+            length(bd -- x) == 1 and
+            cf -- x == []
+        end)
+      )
+
+    b = bd -- acdfg
+    d = bd -- b
+    g = ((acdfg -- a) -- cf) -- d
+    e = 'abcdefg' -- (acdfg ++ b)
+
+    abdfg =
+      to_charlist(
+        Enum.find(ini, fn x ->
+          x = to_charlist(x)
+
+          length(x) == 5 and
+            length(x -- (a ++ b ++ d ++ g)) == 1 and
+            length(cf -- x) == 1
+        end)
+      )
+
+    f = abdfg -- (a ++ b ++ d ++ g)
+    c = cf -- f
+
+    %{
+      '#{Enum.sort(cf)}' => "1",
+      '#{Enum.sort(a ++ c ++ d ++ e ++ g)}' => "2",
+      '#{Enum.sort(acdfg)}' => "3",
+      '#{Enum.sort(b ++ c ++ d ++ f)}' => "4",
+      '#{Enum.sort(abdfg)}' => "5",
+      '#{Enum.sort('abcdefg' -- c)}' => "6",
+      '#{Enum.sort(acf)}' => "7",
+      'abcdefg' => "8",
+      '#{Enum.sort('abcdefg' -- e)}' => "9",
+      '#{Enum.sort('abcdefg' -- d)}' => "0"
+    }
+  end
+
+  defp digit_to_number(digits, segments) do
+    Enum.map(digits, fn digit ->
+      digit = to_charlist(digit) |> Enum.sort()
+      segments[digit]
+    end)
+    |> Enum.join()
+    |> String.to_integer()
+  end
+
+  def solve(data) do
+    Enum.reduce(data, 0, fn {ini, digits}, acc ->
+      segments = segments(ini)
+      number = digit_to_number(digits, segments)
+      number + acc
+    end)
+  end
+end
+
+"input_02.txt"
+|> Puzzle.Common.get_data()
+|> Puzzle.solve()
+```
+
+```output
+973292
+```
