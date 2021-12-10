@@ -1,0 +1,103 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 10: Puntuación de Sintaxis
+
+## General
+
+```elixir
+defmodule Puzzle.Common do
+  def get_data(file) do
+    File.read!(file)
+    |> String.trim_trailing()
+    |> String.split("\n")
+  end
+end
+
+:ok
+```
+
+```output
+:ok
+```
+
+## Puzzle 1
+
+```elixir
+defmodule Puzzle do
+  @spec solve(binary()) :: :ok | {:error, non_neg_integer()}
+  def solve(line), do: solve(to_charlist(line), [])
+
+  defp solve([], _stack), do: :ok
+
+  defp solve([?( = c | rest], stack), do: solve(rest, [c | stack])
+  defp solve([?[ = c | rest], stack), do: solve(rest, [c | stack])
+  defp solve([?{ = c | rest], stack), do: solve(rest, [c | stack])
+  defp solve([?< = c | rest], stack), do: solve(rest, [c | stack])
+
+  defp solve([?) | rest], [?( | stack]), do: solve(rest, stack)
+  defp solve([?] | rest], [?[ | stack]), do: solve(rest, stack)
+  defp solve([?} | rest], [?{ | stack]), do: solve(rest, stack)
+  defp solve([?> | rest], [?< | stack]), do: solve(rest, stack)
+
+  defp solve([?) | _], _stack), do: {:error, 3}
+  defp solve([?] | _], _stack), do: {:error, 57}
+  defp solve([?} | _], _stack), do: {:error, 1197}
+  defp solve([?> | _], _stack), do: {:error, 25137}
+end
+
+Puzzle.Common.get_data("input_01.txt")
+|> Enum.map(&Puzzle.solve/1)
+|> Enum.reject(&(&1 == :ok))
+|> Keyword.values()
+|> Enum.sum()
+```
+
+```output
+265527
+```
+
+## Puzzle 2
+
+```elixir
+defmodule Puzzle do
+  @spec solve(binary()) :: :ok | :error | {:incomplete, non_neg_integer()}
+  def solve(line), do: solve(to_charlist(line), [])
+
+  def score([], acc), do: acc
+  def score([?( | rest], acc), do: score(rest, acc * 5 + 1)
+  def score([?[ | rest], acc), do: score(rest, acc * 5 + 2)
+  def score([?{ | rest], acc), do: score(rest, acc * 5 + 3)
+  def score([?< | rest], acc), do: score(rest, acc * 5 + 4)
+
+  defp solve([], []), do: :ok
+
+  defp solve([], stack) do
+    {:incomplete, score(stack, 0)}
+  end
+
+  defp solve([?( = c | rest], stack), do: solve(rest, [c | stack])
+  defp solve([?[ = c | rest], stack), do: solve(rest, [c | stack])
+  defp solve([?{ = c | rest], stack), do: solve(rest, [c | stack])
+  defp solve([?< = c | rest], stack), do: solve(rest, [c | stack])
+
+  defp solve([?) | rest], [?( | stack]), do: solve(rest, stack)
+  defp solve([?] | rest], [?[ | stack]), do: solve(rest, stack)
+  defp solve([?} | rest], [?{ | stack]), do: solve(rest, stack)
+  defp solve([?> | rest], [?< | stack]), do: solve(rest, stack)
+
+  defp solve(_, _stack), do: :error
+end
+
+values =
+  Puzzle.Common.get_data("input_02.txt")
+  |> Enum.map(&Puzzle.solve/1)
+  |> Enum.reject(&(&1 in [:ok, :error]))
+  |> Keyword.values()
+  |> Enum.sort()
+
+middle = Enum.at(values, ceil(length(values) / 2) - 1)
+```
+
+```output
+3969823589
+```
