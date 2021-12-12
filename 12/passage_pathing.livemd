@@ -1,0 +1,171 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 10: Puntuación de Sintaxis
+
+## General
+
+```elixir
+defmodule Puzzle.Common do
+  def get_data(file) do
+    File.read!(file)
+    |> String.trim_trailing()
+    |> String.split("\n")
+    |> Enum.map(&String.split(&1, "-"))
+    |> Enum.reduce(%{}, fn [a, b], acc ->
+      <<bp::integer-size(8), _::binary()>> = b
+      <<ap::integer-size(8), _::binary()>> = a
+      anode = {a, if(ap in ?a..?z, do: :downcase, else: :uppercase)}
+      bnode = {b, if(bp in ?a..?z, do: :downcase, else: :uppercase)}
+
+      acc
+      |> Map.update(a, [bnode], &Enum.uniq([bnode | &1]))
+      |> Map.update(b, [anode], &Enum.uniq([anode | &1]))
+    end)
+  end
+end
+
+:ok
+```
+
+```output
+:ok
+```
+
+## Puzzle 1
+
+```elixir
+defmodule Puzzle do
+  def solve(graph), do: find_paths(graph, [{"start", :downcase}], [], [], %{})
+
+  defp find_paths(graph, [{"end", _} | other_nodes], path, final_paths, visits) do
+    final_path = Enum.reverse(["end" | path])
+    find_paths(graph, other_nodes, path, [final_path | final_paths], visits)
+  end
+
+  defp find_paths(_graph, [], _path, final_paths, _visits) do
+    final_paths
+  end
+
+  defp find_paths(_graph, nil, _path, final_paths, _visits) do
+    final_paths
+  end
+
+  defp find_paths(graph, [{node, :downcase} | other_nodes], path, final_paths, visits)
+       when is_map_key(visits, node) do
+    find_paths(graph, other_nodes, path, final_paths, visits)
+  end
+
+  defp find_paths(graph, [{node, :downcase} | other_nodes], path, final_paths, visits) do
+    final_paths =
+      find_paths(graph, graph[node], [node | path], final_paths, Map.put(visits, node, true))
+
+    find_paths(graph, other_nodes, path, final_paths, visits)
+  end
+
+  defp find_paths(graph, [{node, :uppercase} | other_nodes], path, final_paths, visits) do
+    final_paths = find_paths(graph, graph[node], [node | path], final_paths, visits)
+    find_paths(graph, other_nodes, path, final_paths, visits)
+  end
+end
+
+Puzzle.Common.get_data("input_01.txt")
+|> Puzzle.solve()
+|> length()
+```
+
+```output
+5958
+```
+
+## Puzzle 2
+
+```elixir
+defmodule Puzzle do
+  def solve(graph), do: find_paths(graph, [{"start", :downcase}], [], [], %{}, false)
+
+  defp find_paths(graph, [{"end", _} | other_nodes], path, final_paths, visits, double_visit) do
+    final_path = Enum.reverse(["end" | path])
+    find_paths(graph, other_nodes, path, [final_path | final_paths], visits, double_visit)
+  end
+
+  defp find_paths(_graph, [], _path, final_paths, _visits, _double_visit) do
+    final_paths
+  end
+
+  defp find_paths(_graph, nil, _path, final_paths, _visits, _double_visit) do
+    final_paths
+  end
+
+  defp find_paths(
+         graph,
+         [{"start", :downcase} | other_nodes],
+         path,
+         final_paths,
+         %{"start" => true} = visits,
+         double_visit
+       ) do
+    find_paths(graph, other_nodes, path, final_paths, visits, double_visit)
+  end
+
+  defp find_paths(graph, [{node, :downcase} | other_nodes], path, final_paths, visits, true)
+       when is_map_key(visits, node) do
+    find_paths(graph, other_nodes, path, final_paths, visits, true)
+  end
+
+  defp find_paths(graph, [{node, :downcase} | other_nodes], path, final_paths, visits, false)
+       when is_map_key(visits, node) do
+    final_paths =
+      find_paths(
+        graph,
+        graph[node],
+        [node | path],
+        final_paths,
+        Map.put(visits, node, true),
+        true
+      )
+
+    find_paths(graph, other_nodes, path, final_paths, visits, false)
+  end
+
+  defp find_paths(
+         graph,
+         [{node, :downcase} | other_nodes],
+         path,
+         final_paths,
+         visits,
+         double_visit
+       ) do
+    final_paths =
+      find_paths(
+        graph,
+        graph[node],
+        [node | path],
+        final_paths,
+        Map.put(visits, node, true),
+        double_visit
+      )
+
+    find_paths(graph, other_nodes, path, final_paths, visits, double_visit)
+  end
+
+  defp find_paths(
+         graph,
+         [{node, :uppercase} | other_nodes],
+         path,
+         final_paths,
+         visits,
+         double_visit
+       ) do
+    final_paths = find_paths(graph, graph[node], [node | path], final_paths, visits, double_visit)
+    find_paths(graph, other_nodes, path, final_paths, visits, double_visit)
+  end
+end
+
+Puzzle.Common.get_data("input_02.txt")
+|> Puzzle.solve()
+|> length()
+```
+
+```output
+150426
+```
