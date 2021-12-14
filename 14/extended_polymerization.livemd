@@ -1,0 +1,189 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Día 14: Extended Polymerization
+
+## General
+
+```elixir
+defmodule Puzzle.Common do
+  def get_data(file) do
+    [template, _ | raw_rules] =
+      File.read!(file)
+      |> String.trim_trailing()
+      |> String.split("\n")
+
+    template = to_charlist(template)
+
+    rules =
+      for <<key::binary-size(2), " -> ", value::integer()>> <- raw_rules, into: %{} do
+        {to_charlist(key), value}
+      end
+
+    graph =
+      for <<key::binary-size(2), " -> ", c::integer()>> <- raw_rules, into: %{} do
+        [a, b] = key = to_charlist(key)
+        {key, [[a, c], [c, b]]}
+      end
+
+    {template, rules, graph}
+  end
+end
+
+:ok
+```
+
+```output
+:ok
+```
+
+## Puzzle 1
+
+```elixir
+defmodule Puzzle do
+  def solve({template, rules, _graph}, steps), do: solve(steps, template, rules)
+
+  defp solve(0, template, _rules), do: template
+
+  defp solve(step, template, rules) do
+    template = extend(template, rules, [])
+    solve(step - 1, template, rules)
+  end
+
+  defp extend([a], _rules, acc), do: Enum.reverse([a | acc])
+
+  defp extend([a, b | rest], rules, acc) do
+    acc = [rules[[a, b]], a | acc]
+    extend([b | rest], rules, acc)
+  end
+
+  def count_elements(polymer), do: count_elements(polymer, %{})
+
+  defp count_elements([], acc), do: acc
+
+  defp count_elements([a | rest], acc) do
+    count_elements(rest, Map.update(acc, a, 1, &(&1 + 1)))
+  end
+end
+
+Puzzle.Common.get_data("demo_input.txt")
+|> Puzzle.solve(10)
+|> Puzzle.count_elements()
+|> Map.values()
+|> Enum.min_max()
+|> then(fn {min, max} -> max - min end)
+```
+
+```output
+1588
+```
+
+## Puzzle 2
+
+```elixir
+defmodule Puzzle do
+  def solve({template, _rules, graph}, steps) do
+    [a | _] = Enum.reverse(template)
+    {acc, _mem, _incr} = solve({%{}, %{}, %{}}, steps, template, graph)
+    Map.update(acc, a, 1, &(&1 + 1))
+  end
+
+  defp solve(acc, _steps, [_a], _graph), do: acc
+
+  defp solve({acc, mem, incr}, steps, [a, b | template], graph) do
+    {acc, mem, incr}
+    |> solve_steps(steps, [a, b], graph)
+    |> solve(steps, [b | template], graph)
+  end
+
+  defp solve_steps({acc, mem, incr}, 0, [a, _b], _graph) do
+    {
+      Map.update(acc, a, 1, &(&1 + 1)),
+      mem,
+      Map.update(incr, a, 1, &(&1 + 1))
+    }
+  end
+
+  defp solve_steps({acc, mem, orig_incr}, steps, pair, _graph)
+       when is_map_key(mem, {pair, steps}) do
+    incr = mem[{pair, steps}]
+
+    acc =
+      Enum.reduce(incr, acc, fn {k, v}, a ->
+        Map.update(a, k, v, &(&1 + v))
+      end)
+
+    acc_incr = Map.merge(orig_incr, incr, fn _k, v1, v2 -> v1 + v2 end)
+    {acc, mem, acc_incr}
+  end
+
+  defp solve_steps({acc, mem, orig_incr}, steps, pair, graph) do
+    [p1, p2] = graph[pair]
+
+    {acc, mem, incr} =
+      {acc, mem, %{}}
+      |> solve(steps - 1, p1, graph)
+      |> solve(steps - 1, p2, graph)
+      |> store_mem(pair, steps)
+
+    acc_incr = Map.merge(orig_incr, incr, fn _k, v1, v2 -> v1 + v2 end)
+    {acc, mem, acc_incr}
+  end
+
+  defp store_mem({acc, mem, incr}, pair, steps) do
+    {acc, Map.put(mem, {pair, steps}, incr), incr}
+  end
+end
+
+Puzzle.Common.get_data("input_01.txt")
+|> Puzzle.solve(40)
+|> Map.values()
+|> Enum.min_max()
+|> then(fn {min, max} -> max - min end)
+```
+
+```output
+4332887448171
+```
+
+```
+Template: BB
+After 1 step: BNB
+
+BBN BBN BBN BBN BBN BB
+
+BB
+- BN         B(N) NB
+- NB
+
+BB
+- BN
+  - BB
+    - BN
+      - BB    B(B) B(N) N(B) B(B) B(N) N(B) B(B) B(N) N(B) B(B) B(N) N(B) B(B) B(N) N(B) BB
+      - BN
+    - NB
+      - NB 
+      - BB
+  - BN
+    - BB
+      - BN
+      - NB
+    - BN
+      - BB
+      - BN
+- NB
+  - NB
+    - NB
+      - NB
+      - BB
+    - BB
+      - BN
+      - NB
+  - BB
+    - BN
+      - BB
+      - BN
+    - NB
+      - NB
+      - BB
+```
